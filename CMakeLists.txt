@@ -14,6 +14,7 @@ find_package(cxxopts CONFIG REQUIRED)
 # Add source to this project's executable.
 add_executable (${PROJECT_NAME}
     "src/main.cpp"
+    "src/packets.cpp"
 )
 
 # sockpp

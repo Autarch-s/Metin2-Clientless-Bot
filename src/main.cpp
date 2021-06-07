@@ -12,6 +12,8 @@ namespace
 volatile bool interrupted{false};
 }
 
+using namespace metin2_clientless_bot;
+
 static bool parse_command_line(int argc, char **&argv)
 {
     try
