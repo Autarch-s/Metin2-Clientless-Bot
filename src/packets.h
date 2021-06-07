@@ -19,19 +19,6 @@ enum class header_type
 
 namespace client
 {
-enum headers : header_t
-{
-    header_server_status = 206,
-};
-
-struct server_status
-{
-    header_t header;
-    server_status() : header(header_server_status)
-    {
-    }
-};
-
 class packet_info
 {
   public:
@@ -68,6 +55,24 @@ class packet_info
 } // namespace client
 namespace server
 {
+
+enum headers : header_t
+{
+    header_channel_status = 210,
+    header_game_phase = 253,
+    header_handshake = 255,
+};
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct channel_status
+{
+    uint16_t port;
+    uint8_t status;
+};
+
+#pragma pack(pop)
 
 } // namespace server
 } // namespace packet

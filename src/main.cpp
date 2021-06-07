@@ -1,4 +1,5 @@
 #include "packets.h"
+#include <cassert>
 #include <chrono>
 #include <csignal>
 #include <cxxopts.hpp>
@@ -6,11 +7,6 @@
 #include <sockpp/tcp_connector.h>
 #include <sockpp/version.h>
 #include <thread>
-
-namespace
-{
-volatile bool interrupted{false};
-}
 
 using namespace metin2_clientless_bot;
 
@@ -56,20 +52,75 @@ static bool parse_command_line(int argc, char **&argv)
                 return false;
             }
 
-            std::signal(SIGINT, [](int) { interrupted = true; });
-
-            // packet::client::server_status status;
-            const std::uint8_t header = 254;
-            do
+            const packet::header_t state = 206;
+            if (conn.write_n(&state, sizeof(state)) != static_cast<ssize_t>(sizeof(state)))
             {
-                if (conn.write_n(&header, sizeof(header)) != static_cast<ssize_t>(sizeof(header)))
+                std::cerr << "Error writing to the TCP stream: " << conn.last_error_str() << std::endl;
+                return false;
+            }
+            std::cout << "Send " << sizeof(state) << " byte(s) to " << conn.peer_address() << " !" << std::endl;
+
+            packet::header_t header;
+            while (conn.read_n(&header, sizeof(header)) == static_cast<ssize_t>(sizeof(header)))
+            {
+                assert(header > 0);
+
+                switch (header)
                 {
-                    std::cerr << "Error writing to the TCP stream: " << conn.last_error_str() << std::endl;
+
+                case packet::server::headers::header_game_phase: {
+                    uint8_t phase_type;
+                    if (conn.read_n(&phase_type, sizeof(phase_type) != -1))
+                        std::cout << "phase " << static_cast<std::int32_t>(phase_type) << std::endl;
+                }
+                break;
+
+                case packet::server::headers::header_channel_status: {
+                    int32_t size;
+                    if (conn.read_n(&size, sizeof(size)) != -1)
+                    {
+                        std::vector<packet::server::channel_status> channel_status(size);
+                        if (conn.read_n(&channel_status[0], size * sizeof(packet::server::channel_status)) != -1)
+                        {
+                            for (const auto &v : channel_status)
+                            {
+                                std::cout << "port: " << v.port << (v.status == 1 ? " ON" : " OFF") << std::endl;
+                            }
+                        }
+                        channel_status.clear();
+                    }
+                    uint8_t succes;
+                    if (conn.read_n(&succes, sizeof(succes)) != -1)
+                    {
+                        std::cout << (succes ? "Success" : "Failed") << " channel status!" << std::endl;
+                    }
+                }
+                break;
+
+                case packet::server::headers::header_handshake: {
+                    uint32_t handshake;
+                    if (conn.read_n(&handshake, sizeof(handshake)) != -1)
+                    {
+                        std::cout << "handshake: " << handshake << std::endl;
+                    }
+                    uint32_t time;
+                    if (conn.read_n(&time, sizeof(time)) != -1)
+                    {
+                        std::cout << "time: " << time << std::endl;
+                    }
+                    int32_t delta;
+                    if (conn.read_n(&delta, sizeof(delta)) != -1)
+                    {
+                        std::cout << "delta: " << time << std::endl;
+                    }
+                }
+                break;
+
+                default:
+                    std::cerr << "unknown header " << static_cast<std::int32_t>(header) << std::endl;
                     break;
                 }
-                std::cout << "Send " << sizeof(header) << " byte(s) to " << conn.peer_address() << " !" << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            } while (!interrupted);
+            }
         }
         else
         {

@@ -7,9 +7,9 @@ namespace packet
 {
 namespace client
 {
+
 packet_info::packet_info() : packets_()
 {
-    set(headers::header_server_status, header_type::static_type, sizeof(server_status));
 }
 
 void packet_info::set(header_t id, header_type type, uint32_t size)
