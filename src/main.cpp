@@ -1,12 +1,12 @@
 #include "packets.h"
+#include <bitset>
 #include <cassert>
 #include <chrono>
 #include <csignal>
 #include <cxxopts.hpp>
-#include <iostream>
+#include <ios>
 #include <sockpp/tcp_connector.h>
 #include <sockpp/version.h>
-#include <thread>
 
 using namespace metin2_clientless_bot;
 
@@ -61,17 +61,15 @@ static bool parse_command_line(int argc, char **&argv)
             std::cout << "Send " << sizeof(state) << " byte(s) to " << conn.peer_address() << " !" << std::endl;
 
             packet::header_t header;
-            while (conn.read_n(&header, sizeof(header)) == static_cast<ssize_t>(sizeof(header)))
+            while (conn.read_n(&header, sizeof(header)) != -1)
             {
-                assert(header > 0);
-
+                bool handled = false;
                 switch (header)
                 {
 
                 case packet::server::headers::header_game_phase: {
                     uint8_t phase_type;
-                    if (conn.read_n(&phase_type, sizeof(phase_type) != -1))
-                        std::cout << "phase " << static_cast<std::int32_t>(phase_type) << std::endl;
+                    handled = conn.read_n(&phase_type, sizeof(phase_type)) != -1;
                 }
                 break;
 
@@ -79,47 +77,68 @@ static bool parse_command_line(int argc, char **&argv)
                     int32_t size;
                     if (conn.read_n(&size, sizeof(size)) != -1)
                     {
-                        std::vector<packet::server::channel_status> channel_status(size);
-                        if (conn.read_n(&channel_status[0], size * sizeof(packet::server::channel_status)) != -1)
+                        while (size--)
                         {
-                            for (const auto &v : channel_status)
+                            uint16_t port;
+                            if (conn.read_n(&port, sizeof(port)) == -1)
                             {
-                                std::cout << "port: " << v.port << (v.status == 1 ? " ON" : " OFF") << std::endl;
+                                handled = false;
+                                break;
                             }
+
+                            uint8_t status;
+                            if (conn.read_n(&status, sizeof(status)) == -1)
+                            {
+                                handled = false;
+                                break;
+                            }
+
+                            handled = true;
                         }
-                        channel_status.clear();
+
+                        if (!handled)
+                            break;
+                    }
+                    else
+                    {
+                        handled = false;
+                        break;
                     }
                     uint8_t succes;
-                    if (conn.read_n(&succes, sizeof(succes)) != -1)
-                    {
-                        std::cout << (succes ? "Success" : "Failed") << " channel status!" << std::endl;
-                    }
+                    handled = conn.read_n(&succes, sizeof(succes)) != -1;
                 }
                 break;
 
                 case packet::server::headers::header_handshake: {
                     uint32_t handshake;
-                    if (conn.read_n(&handshake, sizeof(handshake)) != -1)
-                    {
-                        std::cout << "handshake: " << handshake << std::endl;
-                    }
+                    handled = conn.read_n(&handshake, sizeof(handshake)) != -1;
+
+                    if (!handled)
+                        break;
+
                     uint32_t time;
-                    if (conn.read_n(&time, sizeof(time)) != -1)
-                    {
-                        std::cout << "time: " << time << std::endl;
-                    }
+                    handled = conn.read_n(&time, sizeof(time)) != -1;
+
+                    if (!handled)
+                        break;
+
                     int32_t delta;
-                    if (conn.read_n(&delta, sizeof(delta)) != -1)
-                    {
-                        std::cout << "delta: " << time << std::endl;
-                    }
+                    handled = conn.read_n(&delta, sizeof(delta)) != -1;
+
+                    if (!handled)
+                        break;
                 }
                 break;
 
                 default:
-                    std::cerr << "unknown header " << static_cast<std::int32_t>(header) << std::endl;
+                    handled = false;
                     break;
                 }
+
+                if (!handled)
+                    std::cout << "can't handle header 0x" << std::hex << static_cast<signed>(header) << std::endl;
+                else
+                    std::cout << "handled header 0x" << std::hex << static_cast<signed>(header) << std::endl;
             }
         }
         else

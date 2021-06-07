@@ -63,17 +63,6 @@ enum headers : header_t
     header_handshake = 255,
 };
 
-#pragma pack(push)
-#pragma pack(1)
-
-struct channel_status
-{
-    uint16_t port;
-    uint8_t status;
-};
-
-#pragma pack(pop)
-
 } // namespace server
 } // namespace packet
 } // namespace metin2_clientless_bot
