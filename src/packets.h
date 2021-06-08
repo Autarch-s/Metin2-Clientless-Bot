@@ -19,6 +19,11 @@ enum class header_type
 
 namespace client
 {
+enum headers : header_t
+{
+    header_channel_status = 53,
+};
+
 class packet_info
 {
   public:
@@ -58,9 +63,11 @@ namespace server
 
 enum headers : header_t
 {
-    header_channel_status = 210,
-    header_game_phase = 253,
-    header_handshake = 255,
+    header_channel_status = 83,
+    header_game_phase = 255,
+    header_handshake = 253,
+    header_ping = 44,
+    header_same_login = 15,
 };
 
 } // namespace server
